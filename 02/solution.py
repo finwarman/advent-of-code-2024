@@ -1,8 +1,5 @@
 #! /usr/bin/env python3
 
-from collections import defaultdict
-import math
-
 # ==== INPUT ====
 
 INPUT = 'input.txt'
