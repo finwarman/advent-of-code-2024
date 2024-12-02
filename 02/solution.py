@@ -1,11 +1,13 @@
 #! /usr/bin/env python3
 
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from util import get_input_data
+
 # ==== INPUT ====
 
-INPUT = 'input.txt'
-with open(INPUT, 'r', encoding='UTF-8') as file:
-    data = file.read()
-
+data = get_input_data()
 rows = [[int(x) for x in row.split()] for row in data.split('\n')[:-1] if row]
 
 # ==== SOLUTION ====
@@ -33,7 +35,7 @@ for report in rows:
     if safe:
         safe_count += 1
 
-print(safe_count) # 356
+print("part 1:", safe_count) # 356
 
 
 # part 2:
@@ -64,4 +66,4 @@ for report in rows:
             safe_count += 1
             break
 
-print(safe_count) # 413
+print("part 2:", safe_count) # 413
