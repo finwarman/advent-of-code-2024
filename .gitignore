@@ -45,3 +45,5 @@ Temporary Items
 *.vsix
 
 .vscode/*
+
+__pycache__
