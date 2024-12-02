@@ -14,7 +14,6 @@ rows = [(int(l), int(r)) for l, r in rows]
 # ==== SOLUTION ====
 
 # part 1:
-# sort lists, compare abs, get total
 
 left, right = list(zip(*rows))
 left, right = sorted(left), sorted(right)
@@ -26,8 +25,6 @@ for i in range(len(rows)):
 print(total) # 2430334
 
 # part 2:
-
-# how often each number in left list appears in right list
 
 r_counts = defaultdict(int)
 

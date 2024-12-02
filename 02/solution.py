@@ -44,10 +44,9 @@ print(safe_count) # 356
 # tolerate a single bad level
 
 def generate_report_variations(report):
-    yield report # original report
+    yield report
     for i in range(len(report)):
-        # one character removed, in order
-        yield report[:i] + report[i+1:]
+        yield report[:i] + report[i+1:] # 1 char removed
 
 safe_count = 0
 for report in rows:
