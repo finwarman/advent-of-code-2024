@@ -1,8 +1,5 @@
 #! /usr/bin/env python3
 
-from pathlib import Path
-import sys
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from util import get_input_data
 
 # ==== INPUT ====
