@@ -15,6 +15,9 @@ for x, y in ordering:
     above_map.setdefault(x, set()).add(y)
     below_map.setdefault(y, set()).add(x)
 
+# TODO: could use a topological sort to determine ranks
+# then sort by ranks, but this solution is fast enough :)
+
 # part 1
 
 middle_sum = 0
