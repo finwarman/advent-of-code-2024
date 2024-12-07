@@ -21,7 +21,8 @@ def process_equation(target, current_sum, operands, idx, allow_concat=False):
     elif process_equation(target, current_sum * operands[idx+1], operands, idx + 1, allow_concat):
         result = target
     elif allow_concat:
-        concat_value = int(str(current_sum) + str(operands[idx+1]))
+        # integer arithmetic is faster than 'int(str(current_sum) + str(operands[idx+1]))'
+        concat_value = current_sum * (10 ** len(str(operands[idx+1]))) + operands[idx+1]
         result = process_equation(target, concat_value, operands, idx + 1, allow_concat)
 
     return result
