@@ -18,8 +18,7 @@ DIRS = [( 0, -1), ( 1,  0),  ( 0,  1), (-1,  0)]
 POS = START_POS
 DIR_IDX = 0 # up
 
-VISITED = set()
-VISITED.add(POS)
+VISITED = set([POS])
 
 IN_BOUNDS = True
 while IN_BOUNDS:
@@ -43,13 +42,7 @@ print(len(VISITED)) # 5404
 POS = START_POS
 DIR_IDX = 0 # up
 
-VISITED = set()
-VISITED.add(POS)
-
-UNIQUE_STEPS = set() # ((pos), (dir))
-UNIQUE_STEPS.add((POS, DIR_IDX))
-
-CORNERS = set()
+VISITED = set([POS])
 
 IN_BOUNDS = True
 while IN_BOUNDS:
@@ -62,13 +55,10 @@ while IN_BOUNDS:
 
     if GRID[ny][nx] == 1:
         DIR_IDX = (DIR_IDX + 1) % len(DIRS) # turn right
-
-        CORNERS.add((nx, ny))
     else:
         POS = (nx, ny)
 
     VISITED.add(POS)
-    UNIQUE_STEPS.add((POS, DIR_IDX))
 
 
 OBST_CANDIDATES = set([pos for pos in VISITED])
@@ -90,8 +80,6 @@ def forms_loop(start_pos, start_dir_idx, extra_candidate):
 
         if (nx, ny) == extra_candidate or GRID[ny][nx] == 1:
             dir_idx = (dir_idx + 1) % len(DIRS) # turn right
-
-            CORNERS.add((nx, ny))
         else:
             pos = (nx, ny)
 
