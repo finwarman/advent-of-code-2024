@@ -1,40 +1,49 @@
 #! /usr/bin/env python3
 
-from multiprocessing import Pool
-
 with open('input.txt', 'r', encoding='ascii') as file:
     DATA = file.read().strip()
 
 ROWS = [list(map(int, line.replace(':', '').split(' '))) for line in DATA.splitlines()]
 ROWS = [(line[0], line[1:]) for line in ROWS] # (total, operands)
 
-# evaluates left-to-right, checking each operator configuration
-def process_equation(target, current_sum, operands, idx, allow_concat=False):
-    if current_sum > target:
-        return 0
-    if idx >= len(operands) - 1:
-        return target if current_sum == target else 0
+# check if target value can be obtained by reversing operations from operand list
+# works from right-to-left (since everything is applied left-to-right)
+def reverse_operations(target, operands, allow_concat=False):
+    if not operands:
+        return target == 0 # valid if we reached 0 after reversing all operations
 
-    result = 0
-    if process_equation(target, current_sum + operands[idx+1], operands, idx + 1, allow_concat):
-        result = target
-    elif process_equation(target, current_sum * operands[idx+1], operands, idx + 1, allow_concat):
-        result = target
-    elif allow_concat:
-        # integer arithmetic is faster than 'int(str(current_sum) + str(operands[idx+1]))'
-        concat_value = current_sum * (10 ** len(str(operands[idx+1]))) + operands[idx+1]
-        result = process_equation(target, concat_value, operands, idx + 1, allow_concat)
+    current_operand, remaining_operands = operands[-1], operands[:-1]
 
-    return result
+    # undo add
+    if target >= current_operand: # ensure non-negative after substraction
+        if reverse_operations(target - current_operand, remaining_operands, allow_concat):
+            return True
 
-def get_total(allow_concat=False):
-    with Pool() as pool:
-        return sum(pool.starmap(process_equation, [
-            (total, operands[0], operands, 0, allow_concat)
-            for total, operands in ROWS
-        ]))
+    # undo multiply
+    if current_operand != 0 and \
+        target % current_operand == 0: # ensure integer & no remainder after division ()
+        if reverse_operations(target // current_operand, remaining_operands, allow_concat):
+            return True
 
-# entry point, to allow multiprocessing
+    # undo concatenation (if allowed):
+    # check if concat of current operand with preceding number could have formed the target.
+    if allow_concat:
+        power = 10 ** len(str(current_operand)) # check if target ends with current_operand (modulo)
+        if target % power == current_operand:
+            new_target = target // power # remove the concatenated part (integer division)
+            if reverse_operations(new_target, remaining_operands, allow_concat):
+                return True
+
+    # no valid operations can undo the target, return False.
+    return False
+
+
+def get_total_opt(allow_concat=False):
+    return sum(
+        (total if reverse_operations(total, operands, allow_concat) else 0)
+        for total, operands in ROWS
+    )
+
 if __name__ == "__main__":
-    print(get_total())       # 1708857123053
-    print(get_total(True))   # 189207836795655
+    print(get_total_opt())     # 1708857123053
+    print(get_total_opt(True)) # 189207836795655
