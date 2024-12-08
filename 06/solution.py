@@ -1,111 +1,130 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
-from multiprocessing import Pool
+with open('input.txt', 'r', encoding='ascii') as file:
+    DATA = file.read().strip()
 
-# Load the grid and initialize variables
-def load_grid(file_path):
-    with open(file_path, 'r', encoding='ascii') as file:
-        data = file.read().rstrip()
+# parse input
+GRID = [[1 if c == '#' else 0 for c in line] for line in DATA.splitlines()]
+HEIGHT, WIDTH = len(GRID), len(GRID[0])
 
-    grid_str = data.splitlines()
-    grid = [[1 if c == '#' else 0 for c in line] for line in grid_str if line]
-    height, width = len(grid), len(grid[0])
+player_str_idx = DATA.strip().replace('\n', '').find('^')
+START_POS = (player_str_idx % WIDTH, player_str_idx // WIDTH)
 
-    start_idx = data.strip().replace('\n', '').find('^')
-    start_pos = (start_idx % width, start_idx // width)
-
-    return grid, height, width, start_pos
-
-# (dx, dy) [UP, RIGHT, DOWN, LEFT]
+# direction consts
 DIRS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+(UP, RIGHT, DOWN, LEFT) = [0, 1, 2, 3] # indices
 
-# traverse the grid and return visited positions
-def traverse_grid(start_pos, start_dir_idx, grid, width, height):
-    pos = start_pos
-    dir_idx = start_dir_idx
+# simulate path, return positions in path
+def traverse_path():
+    pos, dir_idx = START_POS, UP
+
     visited = set([pos])
-
     while True:
+        x, y = pos
         dx, dy = DIRS[dir_idx]
-        nx, ny = (pos[0] + dx, pos[1] + dy)
+        nx, ny = x + dx, y + dy
 
-        # bounds check
-        if nx < 0 or nx >= width or ny < 0 or ny >= height:
-            break
+        if nx < 0 or nx >= WIDTH or ny < 0 or ny >= HEIGHT:
+            break # out of bounds
 
-        if grid[ny][nx] == 1:
+        if GRID[ny][nx] == 1:
             dir_idx = (dir_idx + 1) % len(DIRS) # turn right
         else:
-            pos = (nx, ny)
+            pos = (nx, ny) # move to next cell
 
         visited.add(pos)
 
     return visited
 
-# check if adding an obstacle creates a loop
-def forms_loop(start_pos, start_dir_idx, extra_candidate, grid, width, height):
-    unique_steps = set()
-    pos = start_pos
-    dir_idx = start_dir_idx
 
-    while True:
-        dx, dy = DIRS[dir_idx]
-        nx, ny = (pos[0] + dx, pos[1] + dy)
+# build a jump table mapping each (x, y, dir) to (next_pos, new_direction)
+# i.e. for each state in a path, get the next turning point due to an obstacle.
+# this lets us skip simulating individual steps.
+def build_jump_table():
+    jump_table = {}
 
-        # bounds check
-        if nx < 0 or nx >= width or ny < 0 or ny >= height:
-            break
+    # horizontal
+    for y in range(HEIGHT):
+        # LEFT->UP collision turns
+        last_obstacle = (-1, y)
+        for x in range(WIDTH):
+            if GRID[y][x] == 1:
+                last_obstacle = (x + 1, y)
+            jump_table[(x, y, LEFT)] = (last_obstacle, UP)
 
-        if (nx, ny) == extra_candidate or grid[ny][nx] == 1:
-            dir_idx = (dir_idx + 1) % len(DIRS) # turn right
+        # RIGHT->DOWN collision turns
+        last_obstacle = (WIDTH, y)
+        for x in range(WIDTH - 1, -1, -1):
+            if GRID[y][x] == 1:
+                last_obstacle = (x - 1, y)
+            jump_table[(x, y, RIGHT)] = (last_obstacle, DOWN)
+
+    # vertical
+    for x in range(WIDTH):
+        # UP->RIGHT collision turns
+        last_obstacle = (x, -1)
+        for y in range(HEIGHT):
+            if GRID[y][x] == 1:
+                last_obstacle = (x, y + 1)
+            jump_table[(x, y, UP)] = (last_obstacle, RIGHT)
+
+        # DOWN->LEFT collision turns
+        last_obstacle = (x, HEIGHT)
+        for y in range(HEIGHT - 1, -1, -1):
+            if GRID[y][x] == 1:
+                last_obstacle = (x, y - 1)
+            jump_table[(x, y, DOWN)] = (last_obstacle, LEFT)
+
+    return jump_table
+
+def simulate_with_obstacle(obstacle, jump_table):
+    pos, dir_idx = START_POS, UP
+    x_obs, y_obs = obstacle
+
+    visited_states = set([(pos, dir_idx)])
+
+    in_bounds = True
+    while in_bounds:
+        x, y = pos
+        if x != x_obs and y != y_obs:
+            # not on the same row or column as obstacle: use jump table
+            jump_key = (x, y, dir_idx)
+            if jump_key not in jump_table:
+                return 0 # invalid jump, out-of-bounds (no cycle)
+            pos_new, dir_new = jump_table[jump_key]
+            pos, dir_idx = pos_new, dir_new
         else:
-            pos = (nx, ny)
+            # on the same row or column as obstacle: step-by-step
+            dx, dy = DIRS[dir_idx]
+            nx, ny = x + dx, y + dy
 
-        if (pos, dir_idx) in unique_steps:
-            return True # cycle was formed!
+            if not(0 <= nx < WIDTH and 0 <= ny < HEIGHT):
+                return 0 # next step is out-of-bounds (no cycle)
 
-        unique_steps.add((pos, dir_idx))
+            # check collision, including candidate obstacle
+            if (nx, ny) == obstacle or GRID[ny][nx] == 1:
+                dir_idx = (dir_idx + 1) % len(DIRS) # turn right
+            else:
+                pos = (nx, ny) # move to next cell
 
-    return False
+        if (pos, dir_idx) in visited_states:
+            return 1 # cycle detected!
+        visited_states.add((pos, dir_idx))
 
-# Worker function to process a chunk of obstacle candidates
-def process_candidates(chunk, start_pos, grid, width, height):
-    local_loops = 0
-    for cand in chunk:
-        if forms_loop(start_pos, 0, cand, grid, width, height):
-            local_loops += 1
-    return local_loops
+        in_bounds = (0 <= x < WIDTH and 0 <= y < HEIGHT)
 
-# Get number of loops formed by candidate obstacles, with parallelism
-def determine_loops(obst_candidates, start_pos, grid, width, height, num_processes=16):
-    candidates = list(obst_candidates)
+    return 0 # no cycle
 
-    # split work between number of processes
-    chunk_size = (len(candidates) + num_processes - 1) // num_processes
-    chunks = [candidates[i:i + chunk_size] for i in range(0, len(candidates), chunk_size)]
-
-    with Pool(num_processes) as pool:
-        results = pool.starmap(process_candidates, [
-            (chunk, start_pos, grid, width, height) for chunk in chunks
-        ])
-
-    return sum(results)
-
-def main():
-    grid, height, width, start_pos = load_grid('input.txt')
-
-    # Part 1: Determine visited positions
-    visited = traverse_grid(start_pos, 0, grid, width, height)
-
-    print(len(visited)) # 5404
-
-    # Part 2: Determine cycle-forming obstacle candidates
-    obst_candidates = set(visited) # place obstacles along existing path
-
-    # TODO: something clever to reduce seach space
-    loops = determine_loops(obst_candidates, start_pos, grid, width, height)
-
-    print(loops) # 1984
 
 if __name__ == "__main__":
-    main()
+    # part 1: get unique positions in traversal path
+    path = traverse_path()
+    print(len(path)) # 5404
+
+    # part 2: detect cycles with added candidate obstacles
+    obst_candidates = list(path) # each position in path
+    jump_table = build_jump_table() # simulation shortcuts
+
+    loops = sum(simulate_with_obstacle(obstacle, jump_table)
+                for obstacle in obst_candidates)
+    print(loops) # 1984
