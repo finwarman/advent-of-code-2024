@@ -1,159 +1,112 @@
 #! /usr/bin/env python3
 
-from itertools import chain
-
-
 with open('input.txt', 'r', encoding='ascii') as file:
-    DATA = file.read().strip()
+    FILE = file.read().strip()
+DATA = list(map(int, FILE.strip()))
 
-# DATA = '12345'
-# DATA = '2333133121414131402'
+# === part 1 === #
 
-# input = disk map
-# layout of files and free space on disk
+# create memory layout, files (by ID) with free space as None
+def init_memory(data):
+    memory = []
+    is_file = True
+    file_id = 0
+    for size in data:
+        if is_file:
+            memory.extend([file_id] * size)
+            file_id += 1
+        else:
+            memory.extend([None] * size)
+        is_file = not is_file
+    return memory
 
-# checksum = sum of index * file id
+# compact memory to move all files to the start, free spaces to the end
+# return checksum
+def compact_memory(memory):
+    free_ptr = 0
+    end_ptr = len(memory) - 1
 
-EMPTY = '.'
+    while free_ptr < end_ptr:
+        # move free_ptr to the first free block
+        while free_ptr < len(memory) and memory[free_ptr] is not None:
+            free_ptr += 1
 
-DATA = list(DATA.strip())
+        # move end_ptr to the last data block
+        while end_ptr >= 0 and memory[end_ptr] is None:
+            end_ptr -= 1
 
-filesystem = []
+        # swap free space with data block
+        if free_ptr < end_ptr:
+            memory[free_ptr], memory[end_ptr] = memory[end_ptr], memory[free_ptr]
 
-total_data = 0
+    checksum = sum(i * (block or 0) for i, block in enumerate(memory))
+    return checksum
 
-free_spaces = []
-data_spaces = []
+# ============== #
 
-is_data = True
-id = 0
-end_ptr = 0
-for x in DATA:
-    x = int(x)
+# === part 2 === #
 
-    if is_data:
-        for i in range(x):
-            filesystem.append(id)
-            data_spaces.append(end_ptr)
-            end_ptr += 1
-        id += 1
-        total_data += x
-    else:
-        for i in range(x):
-            filesystem.append(EMPTY)
-            free_spaces.append(end_ptr)
-            end_ptr += 1
+# create file and free block structure,
+# alternates between data and free spaces
+def parse_filesystem(data):
+    data_blocks, free_blocks = [], []
 
-    is_data = not is_data
+    file_id = 0
+    for i in range(0, len(data), 2):
+        data_size = data[i]
+        free_size = data[i+1] if (i+1 < len(data)) else 0
 
-free_ptr = int(DATA[0])
+        data_blocks.append([file_id] * data_size)
+        free_blocks.append([[], free_size])
+        file_id += 1
 
-# print(free_ptr)
-# print(end_ptr)
-# print(total_data)
-# print(filesystem)
-# print()
+    return data_blocks, free_blocks
 
-while len(free_spaces) > 1:
-    # print(''.join(str(x) for x in filesystem))
+# mov files into suitable free blocks
+def compact_filesystem(data_blocks, free_blocks):
+    candidate_id = len(data_blocks)
 
-    if free_spaces:
-        free_ptr = free_spaces.pop(0)
-    end_ptr = data_spaces.pop()
+    while candidate_id > 1:
+        candidate_id -= 1
+        candidate_data = data_blocks[candidate_id]
+        candidate_len = len(candidate_data)
 
-    if end_ptr < total_data:
-        break
+        # find a free block with enough space
+        for i in range(candidate_id):
+            if free_blocks[i][1] >= candidate_len:
+                # move candidate data into the free block
+                free_blocks[i][0].extend(candidate_data)
+                free_blocks[i][1] -= candidate_len
 
-    filesystem[free_ptr] = filesystem[end_ptr]
-    filesystem[end_ptr] = EMPTY
-
-# print()
-# print(end_ptr)
-# print(free_ptr)
-# print(total_data)
-# print()
-# print(''.join(str(x) for x in filesystem))
+                # free the original data block
+                data_blocks[candidate_id] = [None] * candidate_len
+                break
 
 
-checksum = 0
+    # calculate checksum
+    checksum, position = 0, 0
 
-for i in range(total_data):
-    data = filesystem[i]
-    assert data != EMPTY
+    for i in range(len(data_blocks)):
+        for block in data_blocks[i]:
+            checksum += (block or 0) * position
+            position += 1
 
-    checksum += i*data
+        for block in free_blocks[i][0]:
+            checksum += block * position
+            position += 1
+
+        position += free_blocks[i][1]
+
+    return checksum
+
+# ============== #
 
 # part 1
+memory = init_memory(DATA)
+part1_checksum = compact_memory(memory)
+print(part1_checksum) # 6398252054886
 
-print(checksum) # 6398252054886
-
-# TODO: keep track of spans
 # part 2
-
-
-class Disk:
-    def __init__(self, file_id, data_blocks, free_blocks):
-        self.file_id = file_id
-        self.data_blocks = data_blocks
-        self.free_blocks = free_blocks
-
-def parse_filesystem(data):
-    numbers = [int(x) for x in data]
-    disks = []
-    for i in range(0, len(numbers), 2):
-        data_blocks = numbers[i]
-        free_blocks = numbers[i + 1] if i + 1 < len(numbers) else 0
-        disks.append(Disk(i // 2, data_blocks, free_blocks))
-    return disks
-
-def compact_filesystem(disks):
-    ptr = len(disks) - 1
-
-    while ptr > 0:
-        current_idx = ptr
-
-        # find free spaces with enough capacity for current file
-        suitable_free_spaces = [
-            idx for idx, disk in enumerate(disks[:current_idx]) if disk.free_blocks >= disks[current_idx].data_blocks
-        ]
-
-        if not suitable_free_spaces:
-            ptr -= 1
-            continue
-
-        # remove the current file and reallocate its blocks
-        current_disk = disks.pop(current_idx)
-
-        # add unused space to the previous disk
-        disks[current_idx - 1].free_blocks += current_disk.data_blocks + current_disk.free_blocks
-
-        # allocate file into the first suitable free space
-        target_idx = suitable_free_spaces[0]
-        blocks_to_move = current_disk.data_blocks
-        disks.insert(
-            target_idx + 1,
-            Disk(current_disk.file_id, blocks_to_move, disks[target_idx].free_blocks - blocks_to_move)
-        )
-
-        # mark free space as used
-        disks[target_idx].free_blocks = 0
-
-    return disks
-
-def calculate_checksum(disks):
-    # flatten files into a block list
-    block_list = list(chain.from_iterable(
-        [disk.file_id] * disk.data_blocks + [0] * disk.free_blocks for disk in disks
-    ))
-    return sum(index * block for index, block in enumerate(block_list))
-
-
-# Input parsing
-# DATA = '2333133121414131402'  # Example input
-
-# Initialize filesystem and compact
-disks = parse_filesystem(DATA)
-disks = compact_filesystem(disks)
-
-# calculate checksum - part 2
-print(calculate_checksum(disks)) # 6415666220005
+data_blocks, free_blocks = parse_filesystem(DATA)
+part2_checksum = compact_filesystem(data_blocks, free_blocks)
+print(part2_checksum) # 6415666220005
