@@ -1,72 +1,44 @@
 #! /usr/bin/env python3
 
-import llist
-from llist import sllist,sllistnode
+from collections import defaultdict
+
+def count_stones(data, iterations):
+    # initialise frequencies of stones
+    stone_freq = defaultdict(int)
+    for stone in data:
+        stone_freq[stone] += 1
+
+    # process stones by tracking unique states + counts
+    for _ in range(iterations):
+        new_freq = defaultdict(int)
+        for stone, count in stone_freq.items():
+            if stone == 0:
+                # replace 0 with 1
+                new_freq[1] += count
+            else:
+                # calculate number of digits
+                num_digits = len(str(stone))
+                if num_digits % 2 == 0:
+                    # split into two stones
+                    half = num_digits // 2
+                    left = stone // (10 ** half)
+                    right = stone % (10 ** half)
+                    new_freq[left] += count
+                    new_freq[right] += count
+                else:
+                    # multiply by 2024
+                    new_freq[stone * 2024] += count
+        stone_freq = new_freq
+
+    return sum(stone_freq.values())
 
 with open('input.txt', 'r', encoding='ascii') as file:
     FILE = file.read().strip()
 
-# FILE = '125 17'
+data = list(map(int, FILE.split()))
 
-DATA = list(map(int, FILE.strip().split()))
+# part 1: 25 iterations
+print(count_stones(data, 25)) # 197157
 
-stones = sllist(DATA)
-
-# print(stones)
-
-# if stone is 0, it is replaced by a stone engraved with the number 1.
-# if the stone is engraved with a number that has an even number of digits, it is replaced by two stones.
-#  - the left half of the digits are engraved on the new left stone, and the right half of the digits are engraved on the new right stone.
-#  - (The new numbers don't keep extra leading zeroes: 1000 would become stones 10 and 0.)
-# if none of the other rules apply, the stone is replaced by a new stone;
-#  - the old stone's number multiplied by 2024 is engraved on the new stone.
-
-
-def process_stones(iterations):
-    sstones = sllist(DATA)
-
-    for _ in range(iterations):
-        node = stones.first
-        while node is not None:
-            current = node.value
-            # print(current, end=" ")
-
-            if current == 0:
-                # Replace 0 with 1
-                node.value = 1
-                node = node.next  # Move to the next node
-
-            elif len(str(current)) % 2 == 0:
-                # Split the number with even digits
-                digits = str(current)
-                mid = len(digits) // 2
-
-                # Calculate left and right halves
-                left_half = int(digits[:mid])
-                right_half = int(digits[mid:])
-
-                # Replace current node's value with left_half
-                node.value = left_half
-
-                # Insert the right_half after the current node
-                right_node = stones.insertafter(right_half, node)
-
-                # Move to the right node (newly inserted)
-                node = right_node.next
-
-            else:
-                # Multiply the stone's number by 2024
-                node.value = current * 2024
-                node = node.next  # Move to the next node
-
-    return len(stones)
-
-# for current in stones:
-#     print(current, end=" ")
-# print()
-
-# part 1
-print(process_stones(25)) # 197157
-
-# part 2
-print(process_stones(75))
+# part 2: 75 iterations
+print(count_stones(data, 75)) # 234430066982597
