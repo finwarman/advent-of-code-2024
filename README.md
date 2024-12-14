@@ -20,7 +20,7 @@ Use .env or set PYTHONPATH=. to import util in scripts.
 | 11    | 11/solution.py  | `0.12s` `0.01s` `97%` `0.131` | 0.13s  | ✔️ |
 | 12    | 12/solution.py  | `0.07s` `0.01s` `96%` `0.080` | 0.08s  | ✔️ |
 | 13    | 13/solution.py  | `0.03s` `0.01s` `93%` `0.040` | 0.04s  | ✔️ |
-| 14    | 14/solution.py  |                               |        |    |
+| 14    | 14/solution.py  | `0.11s` `0.01s` `97%` `0.124` | 0.12s  | ✔️ |
 | 15    | 15/solution.py  |                               |        |    |
 | 16    | 16/solution.py  |                               |        |    |
 | 17    | 17/solution.py  |                               |        |    |
