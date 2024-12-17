@@ -1,7 +1,5 @@
 #! /usr/bin/env python3
 
-from time import sleep
-
 with open('input.txt', 'r') as f:
     FILE = f.read()
 
@@ -27,72 +25,86 @@ IPTR = 0 # instruction pointer
 # 3 bit computer
 # (8 instructions)
 
-print(A)
-print(B)
-print(C)
+class ThreeBitComputer:
+    def __init__(self, a, b, c, program):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.iptr = 0
+        self.program = program
+        self.output = []
 
-print(PROGRAM)
+    def combo_operand(self, value):
+        if 0 <= value <= 3:
+            return value
+        if value == 4:
+            return self.a
+        if value == 5:
+            return self.b
+        if value == 6:
+            return self.c
+        raise Exception(f"Bad combo operand: {value}")
 
-def combo_operand(value):
-    if 0 <= value <= 3:
-        return value
-    if value == 4:
-        return A
-    if value == 5:
-        return B
-    if value == 6:
-        return C
-    raise Exception(f"Bad combo operand: {value}")
+    def step(self):
+        if self.iptr + 1 >= len(self.program):
+            return False
 
-def step():
-    global IPTR, A, B, C, PROGRAM
+        i = self.program[self.iptr]
+        o = self.program[self.iptr + 1]
 
-    if IPTR+1 >= len(PROGRAM):
-        return False
+        # print(f"IPTR: {self.iptr}, Opcode: {i}, Operand: {o}, Registers: A={self.a}, B={self.b}, C={self.c}")
 
-    i = PROGRAM[IPTR]
-    o = PROGRAM[IPTR+1]
+        if i == 0:
+            # adv: division -> a
+            denom = 2 ** self.combo_operand(o)
+            if denom == 0:
+                raise Exception("Division by zero")
+            self.a = self.a // denom
+        elif i == 1:
+            # bxl: B XOR o
+            self.b = self.b ^ o
+        elif i == 2:
+            # bst: mod 8 (lowest 3 bits)
+            self.b = self.combo_operand(o) % 8
+        elif i == 3:
+            # jnz: jump if A is not zero
+            if self.a != 0:
+                self.iptr = o
+                return True  # do not increment iptr
+        elif i == 4:
+            # bxc: B XOR C
+            self.b = self.b ^ self.c
+            # Operand is read but ignored
+        elif i == 5:
+            # out: combo operand mod 8
+            output_value = self.combo_operand(o) % 8
+            self.output.append(output_value)
+        elif i == 6:
+            # bdv: division -> b
+            denom = 2 ** self.combo_operand(o)
+            if denom == 0:
+                raise Exception("Division by zero")
+            self.b = self.a // denom
+        elif i == 7:
+            # cdv: division -> c
+            denom = 2 ** self.combo_operand(o)
+            if denom == 0:
+                raise Exception("Division by zero")
+            self.c = self.a // denom
+        else:
+            raise Exception(f"Unknown opcode: {i}")
 
-    if i == 0:
-        # adv: division -> a
-        denom = 2 ** combo_operand(o)
-        A = A // denom
-    elif i == 1:
-        # bxl: B XOR o
-        B = B ^ o
-    elif i == 2:
-        # bst: mod 8 (lowest 3 bits)
-        B = combo_operand(o) % 8
-    elif i == 3:
-        # jnz: jump if A is not zero
-        if A != 0:
-            IPTR = o
-            return True
-    elif i == 4:
-        # bxc: B XOR C
-        B = B ^ C
-        # ignores operand, but reads it
-    elif i == 5:
-        # out: combo mod 8
-        print(f"{combo_operand(o) % 8}", end=",")
-    elif i == 6:
-        # bdv: division -> b
-        denom = 2 ** combo_operand(o)
-        B = A // denom
-    elif i == 7:
-        # cdv: division -> c
-        denom = 2 ** combo_operand(o)
-        C = A // denom
+        self.iptr += 2
+        return True
 
-    IPTR += 2
-    return True
+    def run(self):
+        running = True
+        while running:
+            running = self.step()
 
-running = True
-while running:
-    running = step()
+        output_str = ",".join(map(str, self.output))
+        return output_str
 
-# backspace and newline
-print('\b ', end="", flush=True)
-print()
-
-# part 1: 1,5,3,0,2,5,2,5,3
+# part 1
+computer = ThreeBitComputer(A, B, C, PROGRAM)
+print(computer.run()) # 1,5,3,0,2,5,2,5,3
