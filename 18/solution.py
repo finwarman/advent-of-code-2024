@@ -41,9 +41,7 @@ TARGET = (70, 70)
 # BYTE_LIMIT = 12
 BYTE_LIMIT = 1024
 
-BYTE_SET = set(BYTES[0:BYTE_LIMIT])
-
-def get_neighbors(x, y, time):
+def get_neighbors(x, y, byte_set):
     moves = []
     directions = [
         (0, -1),
@@ -55,12 +53,12 @@ def get_neighbors(x, y, time):
     for (dx, dy) in directions:
         new_x, new_y = x + dx, y + dy
         if 0 <= new_y <= TARGET[1] and 0 <= new_x <= TARGET[0] \
-           and (new_x, new_y) not in BYTE_SET:
+           and (new_x, new_y) not in byte_set:
             moves.append(((new_x, new_y), 1))
 
     return moves
 
-def dijkstra(start, end):
+def dijkstra(start, end, byte_set):
     start_state = (0, start[0], start[1], 0)  # (cost, x, y, time)
     pq = []
     heapq.heappush(pq, start_state)
@@ -77,10 +75,25 @@ def dijkstra(start, end):
         if (x, y) == end:
             return cost
 
-        for (new_x, new_y), move_cost in get_neighbors(x, y, time):
+        for (new_x, new_y), move_cost in get_neighbors(x, y, byte_set):
             if (new_x, new_y) not in visited:
                 heapq.heappush(pq, (cost + move_cost, new_x, new_y, time + 1))
 
     return float('inf')
 
-print(dijkstra(POS, TARGET)) # part 1: 370
+print(dijkstra(POS, TARGET, set(BYTES[0:BYTE_LIMIT])))
+# part 1: 370
+
+
+# part 2: (brute force)
+
+# todo: apply all bytes, remove until valid path to exit?
+
+BLOCKING_BYTE = None
+for i in range(BYTE_LIMIT, len(BYTES)):
+    byte_set = set(BYTES[0:i])
+    if dijkstra(POS, TARGET, byte_set) == float('inf'):
+        BLOCKING_BYTE = BYTES[i-1]
+        break
+
+print(f"{BLOCKING_BYTE[0]},{BLOCKING_BYTE[1]}") # 65,6
