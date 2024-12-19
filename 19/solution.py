@@ -12,49 +12,26 @@ DESIGNS = PARTS[1].split('\n')
 
 MAX_PAT_LEN = max(len(p) for p in PATTERNS)
 
-def is_possible(design):
-    # memoized recursive helper function
-    @lru_cache(None)
-    def helper(remaining_design):
-        if len(remaining_design) == 0:
-            return True
-
-        for i in range(1, min(MAX_PAT_LEN + 1, len(remaining_design) + 1)):
-            prefix = remaining_design[:i]
-            suffix = remaining_design[i:]
-            if prefix in PATTERNS and helper(suffix):
-                return True
-        return False
-
-    return helper(design)
-
-total = 0
-for design in DESIGNS:
-    possible = is_possible(design)
-    if possible:
-        total += 1
-
-print(total) # part 1: 308
-
 def get_arrangements(design):
     @lru_cache(None)
     def helper(remaining_design):
         if len(remaining_design) == 0:
-            return 1  # base case: 1 valid arrangement (empty design)
+            return 1 # base case (empty design)
 
         count = 0
         for i in range(1, min(MAX_PAT_LEN + 1, len(remaining_design) + 1)):
-            prefix = remaining_design[:i]
-            suffix = remaining_design[i:]
+            prefix, suffix = remaining_design[:i], remaining_design[i:]
             if prefix in PATTERNS:
-                count += helper(suffix)  # sum of ways to arrange remaining design
+                count += helper(suffix) # sum of ways to arrange remaining design
         return count
 
     return helper(design)
 
-total_arrangements = 0
+total_possible, total_arrangements = 0, 0
 for design in DESIGNS:
     arrangements = get_arrangements(design)
+    total_possible += 1 if arrangements > 0 else 0
     total_arrangements += arrangements
 
-print(total_arrangements) # 2333133121414131402
+print(total_possible) # part 1: 308
+print(total_arrangements) # part 2: 662726441391898
