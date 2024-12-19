@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-from functools import lru_cache
+from functools import cache
 
 with open('input.txt', 'r') as f:
     FILE = f.read()
@@ -13,7 +13,7 @@ DESIGNS = PARTS[1].split('\n')
 MAX_PAT_LEN = max(len(p) for p in PATTERNS)
 
 def get_arrangements(design):
-    @lru_cache(None)
+    @cache
     def helper(remaining_design):
         if len(remaining_design) == 0:
             return 1 # base case (empty design)
