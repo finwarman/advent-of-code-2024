@@ -35,3 +35,26 @@ for design in DESIGNS:
         total += 1
 
 print(total) # part 1: 308
+
+def get_arrangements(design):
+    @lru_cache(None)
+    def helper(remaining_design):
+        if len(remaining_design) == 0:
+            return 1  # base case: 1 valid arrangement (empty design)
+
+        count = 0
+        for i in range(1, min(MAX_PAT_LEN + 1, len(remaining_design) + 1)):
+            prefix = remaining_design[:i]
+            suffix = remaining_design[i:]
+            if prefix in PATTERNS:
+                count += helper(suffix)  # sum of ways to arrange remaining design
+        return count
+
+    return helper(design)
+
+total_arrangements = 0
+for design in DESIGNS:
+    arrangements = get_arrangements(design)
+    total_arrangements += arrangements
+
+print(total_arrangements) # 2333133121414131402
