@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 
-import heapq
 from collections import deque
 
+DEMO = False
 with open('input.txt', 'r') as f:
     FILE = f.read()
 
@@ -23,6 +23,8 @@ with open('input.txt', 'r') as f:
 # #...#...#...###
 # ###############
 # '''
+# DEMO = True
+
 
 START = -1, -1
 END   = -1, -1
@@ -145,6 +147,94 @@ def find_single_wall_skips(dist_start, dist_end, fastest_route):
 
     return possible_cheats
 
+# currently much slower than single cheat method
+def find_x_wall_skips(dist_start, dist_end, fastest_route, x=20):
+    """
+    return all cheats (start_cell, end_cell, total_cost, time_saved)
+    where we can move up to 'x' steps ignoring walls exactly once.
+    (cheat must start on track, end on track, and last <= x moves.)
+    """
+    possible_cheats = {}
+    # dict (start_cell, end_cell) -> best_total_cost
+
+    # only attempt BFS from cells that are reachable from START and can reach END.
+    # i.e. dist_start[y][x] != inf and dist_end[y][x] != inf
+    for cy in range(HEIGHT):
+        for cx in range(WIDTH):
+            if dist_start[cy][cx] == float('inf'):
+                continue
+            if dist_end[cy][cx] == float('inf'):
+                continue
+
+            costC = dist_start[cy][cx]  # cost so far to (cx, cy)
+
+            # BFS up to x steps ignoring walls
+            # BFSdist[y][x] = how many steps needed (in cheat mode) to reach (x, y) ignoring walls
+            BFSdist = [[float('inf')] * WIDTH for _ in range(HEIGHT)]
+            BFSdist[cy][cx] = 0
+
+            queue = deque([(cx, cy)])
+            while queue:
+                px, py = queue.popleft()
+                steps_used = BFSdist[py][px]
+                if steps_used == x:
+                    # can't extend any further if we've used up 'x' cheat steps
+                    continue
+
+                # expand neighbors ignoring walls
+                for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
+                    nx, ny = px + dx, py + dy
+                    if 0 <= nx < WIDTH and 0 <= ny < HEIGHT:
+                        # ignoring walls -> always allowed to step
+                        next_cost = steps_used + 1
+                        if next_cost < BFSdist[ny][nx]:
+                            BFSdist[ny][nx] = next_cost
+                            queue.append((nx, ny))
+
+            # now BFSdist[ey][ex] <= x means we can cheat from (cx, cy) to (ex, ey) in BFSdist steps
+            # the cheat must end on track.
+            for ey in range(HEIGHT):
+                for ex in range(WIDTH):
+                    if TRACK[ey][ex] == 0:  # track
+                        d = BFSdist[ey][ex]
+                        if d != float('inf'):
+                            total_cost = costC + d + dist_end[ey][ex]
+                            if total_cost < fastest_route:
+                                time_saved = fastest_route - total_cost
+                                # identify cheat by start/end track cells
+                                key = ((cx, cy), (ex, ey))
+                                if key not in possible_cheats or total_cost < possible_cheats[key]:
+                                    possible_cheats[key] = total_cost
+
+    results = []
+    for (start_cell, end_cell), best_cost in possible_cheats.items():
+        time_saved = fastest_route - best_cost
+        results.append({
+            "start_cell": start_cell,
+            "end_cell":   end_cell,
+            "total_cost": best_cost,
+            "time_saved": time_saved
+        })
+
+    return results
+
+def print_skips_like_aoc(skips, fastest_route, min_diff):
+    # print like in problem definition
+    time_saved_skips = {}
+    for skip in skips:
+        if skip['time_saved'] not in time_saved_skips:
+            time_saved_skips[skip['time_saved']] = 0
+        time_saved_skips[skip['time_saved']] += 1
+    print()
+    for i in range(fastest_route):
+        if i not in time_saved_skips:
+            continue
+        if time_saved_skips[i] == 1:
+            print(f"There is one cheat that save {i + min_diff} picoseconds.")
+        else:
+            print(f"There are {time_saved_skips[i]} cheats that save {i + min_diff} picoseconds.")
+
+
 def main():
     # compute min 'legit' cost from each path position to end
     dist_end = bfs_distances_to_end(END)
@@ -154,32 +244,35 @@ def main():
     fastest_route = dist_end[START[1]][START[0]]
     print("fastest legit route:", fastest_route)
 
-    # find any point that can be shortened by cheating once
-    # then get any that, from start, have an overall shortest route
-    # faster 'dist'
+    ### PART 1 ###
 
-    # min_diff = 0
     min_diff = 99 # save 100
+    if DEMO:
+        min_diff = 0 # save 1
+
     skips = find_single_wall_skips(dist_start, dist_end, fastest_route - min_diff)
     total = len(skips)
 
-    # # print like in problem definition
-    # time_saved_skips = {}
-    # for skip in skips:
-    #     if skip['time_saved'] not in time_saved_skips:
-    #         time_saved_skips[skip['time_saved']] = 0
-    #     time_saved_skips[skip['time_saved']] += 1
-    # print()
-    # for i in range(fastest_route):
-    #     if i not in time_saved_skips:
-    #         continue
-    #     if time_saved_skips[i] == 1:
-    #         print(f"There is one cheat that save {i + min_diff} picoseconds.")
-    #     else:
-    #         print(f"There are {time_saved_skips[i]} cheats that save {i + min_diff} picoseconds.")
+    if DEMO:
+        print_skips_like_aoc(skips, fastest_route, min_diff)
+        print()
 
-    print()
     print(total) # part 1: 1323
+
+    ### PART 2 ###
+
+    min_diff = 99 # save 100
+    if DEMO:
+        min_diff = 49 # save 50
+
+    skips = find_x_wall_skips(dist_start, dist_end, fastest_route - min_diff, x=20)
+    total = len(skips)
+
+    if DEMO:
+        print_skips_like_aoc(skips, fastest_route, min_diff)
+        print()
+
+    print(total) # part 2: 983905
 
 if __name__ == "__main__":
     main()
